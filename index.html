@@ -20,6 +20,8 @@
 			width: 120px;
 			border: 1px solid rgba(0,0,0,0.4);
 			font-family: 'Open Sans', sans-serif;
+			max-height: 50%;
+			overflow-y: scroll;
 		}
 
 		#menu a, #menu h1 {
@@ -112,7 +114,56 @@ map.on('moveend', function(e) {
 	saveSettings();
 });
 
-var toggleLayers = [
+
+map.on('load', function(e) {
+	var style = map.getStyle();
+	var groups = style.metadata["mapbox:groups"];
+	var layers = style.layers;
+	var menu = document.getElementById('menu');
+
+	for (var group in groups) {
+		var link = document.createElement('a');
+		link.href = '#';
+		link.setAttribute('data-group', group);
+		link.textContent = groups[group].name;
+		link.onclick = function (e) {
+			e.preventDefault();
+			e.stopPropagation();
+			var group = this.getAttribute('data-group');
+			var submenu = document.getElementById(group);
+			if (submenu.style.display === 'none') {
+				submenu.style.display = 'block';
+			} else {
+				submenu.style.display = 'none';
+			}
+		};
+
+		var heading = document.createElement('h1');
+		heading.appendChild(link);
+		menu.appendChild(heading);
+
+		var submenu = document.createElement('div');
+		submenu.id = group;
+		submenu.style.display = 'none';
+		for (var i = layers.length - 1; i >= 0; i --) {
+			var layer = layers[i];
+			if (layer.metadata !== undefined && group == layer.metadata["mapbox:group"]) {
+				var link = document.createElement('a');
+				link.href = '#';
+				link.textContent = layer.id;
+				submenu.appendChild(link);
+			}
+		}
+		menu.appendChild(submenu);
+	}
+	/*for (var i = 0; i < layers.length; i ++) {
+		var layer = layers[i];
+		console.log(layer.metadata);
+	}*/
+});
+
+/*
+var menuLayers = [
 	{
 		'2016 ACS5': [
 			'Drove Alone',
@@ -185,6 +236,7 @@ map.on('load', function(e) {
 
 	addItems(toggleLayers);
 });
+*/
 
 </script>
 
