@@ -6,6 +6,8 @@
 	<meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no" />
 	<script src="https://api.tiles.mapbox.com/mapbox-gl-js/v0.49.0/mapbox-gl.js"></script>
 	<link href="https://api.tiles.mapbox.com/mapbox-gl-js/v0.49.0/mapbox-gl.css" rel="stylesheet" />
+	<script src='mapbox-gl-traffic.js'></script>
+	<link href='mapbox-gl-traffic.css' rel='stylesheet' />
 	<style>
 		body { margin: 0; padding: 0; }
 		#map { position: absolute; top: 0; bottom: 0; width: 100%; }
@@ -21,6 +23,15 @@
 		
 		.mapboxgl-popup-content h1 {
 			font-size: 16px;
+			margin-top: -3px;
+			margin-bottom: 5px;
+		}
+		
+		.mapboxgl-popup-close-button {
+			position: absolute;
+			top: 5px;
+			right: 5px;
+			transform: scale(3);
 		}
 		
 		td {
@@ -144,6 +155,11 @@ function saveSettings() {
 		"; path=/";
 }
 
+
+// traffic:
+map.addControl(new mapboxgl.NavigationControl());
+map.addControl(new MapboxTraffic());
+
 map.on('moveend', function(e) {
 	settings['center'] = map.getCenter();
 	settings['zoom'] = map.getZoom();
@@ -262,7 +278,7 @@ map.on('load', function(e) {
 	
 	document.addEventListener('keypress', function(e) {
 		if (e.key == 'Escape' || e.key == 'Enter') {
-			popup.setLngLat([0, 0]);
+			popup.remove();
 		}
 	});
 });
@@ -291,9 +307,10 @@ map.on('click', function(e) {
 			var property = properties[i];
 			var propLabel = propLabels[i];
 			var theProp = top.properties[property];
-			if (theProp.toLowerCase().indexOf('http') == 0 && theProp.toLowerCase().indexOf('.jpg') == theProp.length - 4) {
-				if (theProp.toLowerCase().indexOf(',http') > 0) {
-					theProp = theProp.split(',')[0];
+			var propString = theProp.toString().toLowerCase();
+			if (propString.indexOf('http') == 0 && propString.indexOf('.jpg') == propString.length - 4) {
+				if (propString.indexOf(',http') > 0) {
+					theProp = theProp.toString().split(',')[0];
 				}
 				theProp = '<img src="' + theProp + '" />';
 			}
@@ -305,9 +322,10 @@ map.on('click', function(e) {
 		propHTML = propHTML + '</table>';
 		popup.setLngLat(e.lngLat);
 		popup.setHTML(title + propHTML);
+		popup.addTo(map);
 	} else {
 		map.getCanvas().style.cursor = 'default';
-		popup.setLngLat([0, 0]);
+		popup.remove();
 	}
 })
 
