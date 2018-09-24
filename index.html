@@ -9,7 +9,16 @@
 	<style>
 		body { margin: 0; padding: 0; }
 		#map { position: absolute; top: 0; bottom: 0; width: 100%; }
-
+		
+		th {
+			text-align: left;
+		}
+		
+		.mapboxgl-popup-content img {
+			max-width: 500px;
+			max-height: 500px;
+		}
+		
 		#menu {
 			background: #fff;
 			position: absolute;
@@ -23,8 +32,25 @@
 			max-height: 50%;
 			overflow-y: scroll;
 		}
-
-		#menu a, #menu h1 {
+		
+		#menu .heading {
+			background: #000;
+		}
+		
+		#menu .heading a {
+			font-weight: bold;
+			color: #fff;
+		}
+		
+		#menu .heading a:after {
+			content: '\0000a0 \25BC';
+		}
+		
+		#menu .heading a.open:after {
+			content: '\0000a0 \25B2';
+		}
+		
+		#menu a {
 			font-size: 13px;
 			color: #404040;
 			display: block;
@@ -32,16 +58,8 @@
 			padding: 5px;
 			padding-top: 7px;
 			text-decoration: none;
-			border-bottom: 1px solid rgba(0,0,0,0.25);
+			border-bottom: 1px solid rgba(0, 0, 0, 0.25);
 			text-align: center;
-		}
-
-		#menu a:first-child {
-			border-radius: 4px 4px 0 0;
-		}
-
-		#menu a:last-child {
-			border-radius: 0 0 4px 4px;
 		}
 
 		#menu a:hover {
@@ -86,6 +104,7 @@ map.dragRotate.disable();
 map.touchZoomRotate.disableRotation();
 
 var settings = {};
+var visibleLayers = [];
 
 function loadSettings() {
 	var cookies = document.cookie.split(';');
@@ -115,17 +134,71 @@ map.on('moveend', function(e) {
 });
 
 
+function createLink(layer) {
+	var link = document.createElement('a');
+	link.href = '#';
+	link.textContent = layer.id;
+	
+	var visibility = true;
+	if (visibleLayers.length > 0) {
+		visibility = visibleLayers.indexOf(layer.id) > -1;
+	}
+	link.className = visibility ? 'active' : '';
+	map.setLayoutProperty(layer.id, 'visibility', visibility ? 'visible' : 'none');
+	
+	link.onclick = function (e) {
+		var clickedLayer = this.textContent;
+		e.preventDefault();
+		e.stopPropagation();
+		
+		var index = visibleLayers.indexOf(clickedLayer);
+		if (index > -1) visibleLayers.splice(index, 1);
+		
+		var visibility = map.getLayoutProperty(clickedLayer, 'visibility') === 'visible';
+		if (visibility) {
+			this.className = '';
+			map.setLayoutProperty(clickedLayer, 'visibility', 'none');
+		} else {
+			this.className = 'active';
+			map.setLayoutProperty(clickedLayer, 'visibility', 'visible');
+			visibleLayers.push(clickedLayer);
+		}
+		
+		settings['visibleLayers'] = visibleLayers;
+		saveSettings();
+	};
+	
+	return(link);
+}
+
+
+var popupLabels = {
+	'Walkscope Sidewalk Quality': {
+		'r_How_woul': 'Quality Rating',
+		'address': 'address',
+		'photos': 'photo',
+		'i_detached': 'detached',
+		'i_width': 'width',
+		'i_length': 'length',
+		'r_What_typ': 'type'
+	}
+};
+
 map.on('load', function(e) {
 	var style = map.getStyle();
 	var groups = style.metadata["mapbox:groups"];
 	var layers = style.layers;
 	var menu = document.getElementById('menu');
-	var visible = settings['visible'] || layers.map(function(layer) { return(layer.id) } );
+	visibleLayers = settings['visibleLayers'];
+	if (visibleLayers === undefined || visibleLayers.length == 0) {
+		visibleLayers = layers.map(function(layer) { return(layer.id) } );
+	}
 	
-	for (var i = 0; i < layers.length; i++) {
-		map.setLayoutProperty(layers[i].id, 'visibility',
-			visible.indexOf(layers[i].id) > -1 ? 'visible' : 'none'
-		);
+	for (var i = layers.length - 1; i >= 0; i --) {
+		var layer = layers[i];
+		if (layer.metadata === undefined) {
+			menu.appendChild(createLink(layer));
+		}
 	}
 	
 	for (var group in groups) {
@@ -139,13 +212,16 @@ map.on('load', function(e) {
 			var group = this.getAttribute('data-group');
 			var submenu = document.getElementById(group);
 			if (submenu.style.display === 'none') {
+				this.className = 'open';
 				submenu.style.display = 'block';
 			} else {
+				this.className = '';
 				submenu.style.display = 'none';
 			}
 		};
 		
-		var heading = document.createElement('h1');
+		var heading = document.createElement('div');
+		heading.className = 'heading';
 		heading.appendChild(link);
 		menu.appendChild(heading);
 		
@@ -155,125 +231,65 @@ map.on('load', function(e) {
 		for (var i = layers.length - 1; i >= 0; i --) {
 			var layer = layers[i];
 			if (layer.metadata !== undefined && group == layer.metadata["mapbox:group"]) {
-				var link = document.createElement('a');
-				link.href = '#';
-				link.textContent = layer.id;
-				
-				var visibility = true;
-				if (visible.length > 0) {
-					visibility = visible.indexOf(layer.id) > -1;
-				}
-				link.className = visibility ? 'active' : '';
-				
-				link.onclick = function (e) {
-					var visible = settings['visible'] || layers.map(function(layer) { return(layer.id) } );
-					var clickedLayer = this.textContent;
-					e.preventDefault();
-					e.stopPropagation();
-					
-					var index = visible.indexOf(clickedLayer);
-					if (index > -1) visible.splice(index, 1);
-					
-					var visibility = map.getLayoutProperty(clickedLayer, 'visibility') === 'visible';
-					if (visibility) {
-						this.className = '';
-						map.setLayoutProperty(clickedLayer, 'visibility', 'none');
-					} else {
-						this.className = 'active';
-						map.setLayoutProperty(clickedLayer, 'visibility', 'visible');
-						visible.push(clickedLayer);
-					}
-					
-					settings['visible'] = visible;
-					saveSettings();
-				};
-				
-				submenu.appendChild(link);
+				submenu.appendChild(createLink(layer));
 			}
 		}
 		menu.appendChild(submenu);
 	}
-	/*for (var i = 0; i < layers.length; i ++) {
-		var layer = layers[i];
-		console.log(layer.metadata);
-	}*/
+	
+	for (var i = 0; i < layers.length; i++) {
+		map.setLayoutProperty(layers[i].id, 'visibility',
+			visibleLayers.indexOf(layers[i].id) > -1 ? 'visible' : 'none'
+		);
+	}
 });
 
-/*
-var menuLayers = [
-	{
-		'2016 ACS5': [
-			'Drove Alone',
-			'Pedestrian',
-			'Bicycle',
-			'Bus'
-		]
-	},
-	'Transit LOS',
-	'Walkscope Sidewalk Quality'
-];
+var popup = new mapboxgl.Popup({closeOnClick: false}).addTo(map).setLngLat([0, 0]);
 
-map.on('load', function(e) {
-	var menu = document.getElementById('menu');
-	var visible = settings['visible'] || [];
-
-	function addItem(layer) {
-		var link = document.createElement('a');
-		link.href = '#';
-
-		if (visible.indexOf(layer) > -1) {
-			link.className = 'active';
-			map.setLayoutProperty(layer, 'visibility', 'visible');
-		} else {
-			map.setLayoutProperty(layer, 'visibility', 'none');
-			link.className = '';
-		}
-		link.textContent = layer;
-
-		link.onclick = function (e) {
-			var clickedLayer = this.textContent;
-			e.preventDefault();
-			e.stopPropagation();
-
-			var visibility = map.getLayoutProperty(clickedLayer, 'visibility');
-
-			var index = visible.indexOf(clickedLayer);
-			if (index > -1) visible.splice(index, 1);
-
-			if (visibility === 'visible') {
-				map.setLayoutProperty(clickedLayer, 'visibility', 'none');
-				this.className = '';
+map.on('click', function(e) {
+	var features = map.queryRenderedFeatures(e.point);
+	if (features.length > 0) {
+		map.getCanvas().style.cursor = 'pointer';
+		var top = features[0];
+		var title = '<h1>' + top.layer.id + '</h1>';
+		
+		var propHTML = '<table>';
+		for (var property in top.properties) {
+			var propLabel;
+			var display = false;
+			if (popupLabels[top.layer.id] === undefined) {
+				propLabel = property;
+				display = true;
 			} else {
-				this.className = 'active';
-				map.setLayoutProperty(clickedLayer, 'visibility', 'visible');
-				visible.push(clickedLayer);
+				if (popupLabels[top.layer.id][property] === undefined) {
+					display = false;
+				} else {
+					propLabel = popupLabels[top.layer.id][property];
+					display = true;
+				}
 			}
-
-			settings['visible'] = visible;
-			saveSettings();
-		};
-
-		menu.appendChild(link);
-	}
-
-	function addItems(items) {
-		for (var i = 0; i < items.length; i ++) {
-			if (typeof(items[i]) == "string") {
-				addItem(items[i]);
-			} else {
-				addMenu(items[i]);
+			if (display) {
+				var theProp = top.properties[property];
+				if (theProp.toLowerCase().indexOf('http') == 0 && theProp.toLowerCase().indexOf('.jpg') == theProp.length - 4) {
+					if (theProp.toLowerCase().indexOf(',http') > 0) {
+						theProp = theProp.split(',')[0];
+					}
+					theProp = '<img src="' + theProp + '" />';
+				}
+				propHTML = propHTML +
+					'<tr><th>' + propLabel + '</th>' +
+					'<td>' + theProp + '</td></tr>'
+				;
 			}
 		}
+		propHTML = propHTML + '</table>';
+		popup.setLngLat(e.lngLat);
+		popup.setHTML(title + propHTML);
+	} else {
+		map.getCanvas().style.cursor = 'default';
+		popup.setLngLat([0, 0]);
 	}
-
-	function addMenu(menu) {
-		var heading = Object.keys(menu)[0];
-
-	}
-
-	addItems(toggleLayers);
-});
-*/
+})
 
 </script>
 
