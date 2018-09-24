@@ -120,7 +120,14 @@ map.on('load', function(e) {
 	var groups = style.metadata["mapbox:groups"];
 	var layers = style.layers;
 	var menu = document.getElementById('menu');
-
+	var visible = settings['visible'] || layers.map(function(layer) { return(layer.id) } );
+	
+	for (var i = 0; i < layers.length; i++) {
+		map.setLayoutProperty(layers[i].id, 'visibility',
+			visible.indexOf(layers[i].id) > -1 ? 'visible' : 'none'
+		);
+	}
+	
 	for (var group in groups) {
 		var link = document.createElement('a');
 		link.href = '#';
@@ -137,11 +144,11 @@ map.on('load', function(e) {
 				submenu.style.display = 'none';
 			}
 		};
-
+		
 		var heading = document.createElement('h1');
 		heading.appendChild(link);
 		menu.appendChild(heading);
-
+		
 		var submenu = document.createElement('div');
 		submenu.id = group;
 		submenu.style.display = 'none';
@@ -151,6 +158,36 @@ map.on('load', function(e) {
 				var link = document.createElement('a');
 				link.href = '#';
 				link.textContent = layer.id;
+				
+				var visibility = true;
+				if (visible.length > 0) {
+					visibility = visible.indexOf(layer.id) > -1;
+				}
+				link.className = visibility ? 'active' : '';
+				
+				link.onclick = function (e) {
+					var visible = settings['visible'] || layers.map(function(layer) { return(layer.id) } );
+					var clickedLayer = this.textContent;
+					e.preventDefault();
+					e.stopPropagation();
+					
+					var index = visible.indexOf(clickedLayer);
+					if (index > -1) visible.splice(index, 1);
+					
+					var visibility = map.getLayoutProperty(clickedLayer, 'visibility') === 'visible';
+					if (visibility) {
+						this.className = '';
+						map.setLayoutProperty(clickedLayer, 'visibility', 'none');
+					} else {
+						this.className = 'active';
+						map.setLayoutProperty(clickedLayer, 'visibility', 'visible');
+						visible.push(clickedLayer);
+					}
+					
+					settings['visible'] = visible;
+					saveSettings();
+				};
+				
 				submenu.appendChild(link);
 			}
 		}
