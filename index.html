@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta charset="utf-8" />
+	<title>URPL 6560 Project</title>
+	<meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no" />
+	<script src="https://api.tiles.mapbox.com/mapbox-gl-js/v0.49.0/mapbox-gl.js"></script>
+	<link href="https://api.tiles.mapbox.com/mapbox-gl-js/v0.49.0/mapbox-gl.css" rel="stylesheet" />
+	<style>
+		body { margin: 0; padding: 0; }
+		#map { position: absolute; top: 0; bottom: 0; width: 100%; }
+
+		#menu {
+			background: #fff;
+			position: absolute;
+			z-index: 1;
+			top: 10px;
+			right: 25px;
+			border-radius: 5px;
+			width: 120px;
+			border: 1px solid rgba(0,0,0,0.4);
+			font-family: 'Open Sans', sans-serif;
+		}
+
+		#menu a, #menu h1 {
+			font-size: 13px;
+			color: #404040;
+			display: block;
+			margin: 0;
+			padding: 5px;
+			padding-top: 7px;
+			text-decoration: none;
+			border-bottom: 1px solid rgba(0,0,0,0.25);
+			text-align: center;
+		}
+
+		#menu a:first-child {
+			border-radius: 4px 4px 0 0;
+		}
+
+		#menu a:last-child {
+			border-radius: 0 0 4px 4px;
+		}
+
+		#menu a:hover {
+			background-color: #f8f8f8;
+			color: #404040;
+		}
+
+		#menu a.active {
+			background-color: #3887be;
+			color: #ffffff;
+		}
+
+		#menu a.active:hover {
+			background: #3074a4;
+		}
+	</style>
+</head>
+<body>
+	<nav id="menu"></nav>
+	<div id="map"></div>
+<script>
+
+// Set bounds to Denver, CO area
+var bounds = [
+	[-105.2, 39.6], // Southwest coordinates
+	[-104.85, 39.8]  // Northeast coordinates
+];
+
+mapboxgl.accessToken = "pk.eyJ1IjoidGdydXNoa2F1Y2QiLCJhIjoiY2ptY2Z6aHNhNXpnbzN3b2docTd4bnNkciJ9.oqlYkdhGhibW2XWHC2lUFA";
+var map = new mapboxgl.Map({
+	container: "map", // container id
+	style: "mapbox://styles/tgrushkaucd/cjmcxdko1j2jk2rl6k1cd95ux", // stylesheet location
+	center: [-105.02667669298, 39.7027104106999], // starting position [lng, lat]
+	zoom: 13, // starting zoom
+	maxBounds: bounds
+});
+
+// disable map rotation using right click + drag
+map.dragRotate.disable();
+
+// disable map rotation using touch rotation gesture
+map.touchZoomRotate.disableRotation();
+
+var settings = {};
+
+function loadSettings() {
+	var cookies = document.cookie.split(';');
+	for (var i in cookies) {
+		var temp = cookies[i].split('=');
+		if (temp[0] == 'settings') {
+			settings = JSON.parse(temp[1]);
+			map.setZoom(settings['zoom']);
+			map.setCenter(settings['center']);
+		}
+	}
+}
+loadSettings();
+
+function saveSettings() {
+	var d = new Date();
+	d.setTime(d.getTime() + 2592000000);
+	document.cookie = "settings=" + JSON.stringify(settings) +
+		"; expires=" + d.toUTCString() +
+		"; path=/";
+}
+
+map.on('moveend', function(e) {
+	settings['center'] = map.getCenter();
+	settings['zoom'] = map.getZoom();
+	saveSettings();
+});
+
+var toggleLayers = [
+	{
+		'2016 ACS5': [
+			'Drove Alone',
+			'Pedestrian',
+			'Bicycle',
+			'Bus'
+		]
+	},
+	'Transit LOS',
+	'Walkscope Sidewalk Quality'
+];
+
+map.on('load', function(e) {
+	var menu = document.getElementById('menu');
+	var visible = settings['visible'] || [];
+
+	function addItem(layer) {
+		var link = document.createElement('a');
+		link.href = '#';
+
+		if (visible.indexOf(layer) > -1) {
+			link.className = 'active';
+			map.setLayoutProperty(layer, 'visibility', 'visible');
+		} else {
+			map.setLayoutProperty(layer, 'visibility', 'none');
+			link.className = '';
+		}
+		link.textContent = layer;
+
+		link.onclick = function (e) {
+			var clickedLayer = this.textContent;
+			e.preventDefault();
+			e.stopPropagation();
+
+			var visibility = map.getLayoutProperty(clickedLayer, 'visibility');
+
+			var index = visible.indexOf(clickedLayer);
+			if (index > -1) visible.splice(index, 1);
+
+			if (visibility === 'visible') {
+				map.setLayoutProperty(clickedLayer, 'visibility', 'none');
+				this.className = '';
+			} else {
+				this.className = 'active';
+				map.setLayoutProperty(clickedLayer, 'visibility', 'visible');
+				visible.push(clickedLayer);
+			}
+
+			settings['visible'] = visible;
+			saveSettings();
+		};
+
+		menu.appendChild(link);
+	}
+
+	function addItems(items) {
+		for (var i = 0; i < items.length; i ++) {
+			if (typeof(items[i]) == "string") {
+				addItem(items[i]);
+			} else {
+				addMenu(items[i]);
+			}
+		}
+	}
+
+	function addMenu(menu) {
+		var heading = Object.keys(menu)[0];
+
+	}
+
+	addItems(toggleLayers);
+});
+
+</script>
+
+</body>
+</html>
