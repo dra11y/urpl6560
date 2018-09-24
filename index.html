@@ -16,7 +16,24 @@
 		
 		.mapboxgl-popup-content img {
 			max-width: 500px;
-			max-height: 500px;
+			max-height: 300px;
+		}
+		
+		.mapboxgl-popup-content h1 {
+			font-size: 16px;
+		}
+		
+		td {
+			padding: 2px;
+		}
+		
+		table {
+			border-spacing: 0;
+			border-collapse: collapse;
+		}
+		
+		tbody tr:nth-child(odd) {
+			background-color: #ddd;
 		}
 		
 		#menu {
@@ -242,9 +259,16 @@ map.on('load', function(e) {
 			visibleLayers.indexOf(layers[i].id) > -1 ? 'visible' : 'none'
 		);
 	}
+	
+	document.addEventListener('keypress', function(e) {
+		if (e.key == 'Escape' || e.key == 'Enter') {
+			popup.setLngLat([0, 0]);
+		}
+	});
 });
 
 var popup = new mapboxgl.Popup({closeOnClick: false}).addTo(map).setLngLat([0, 0]);
+
 
 map.on('click', function(e) {
 	var features = map.queryRenderedFeatures(e.point);
@@ -254,33 +278,29 @@ map.on('click', function(e) {
 		var title = '<h1>' + top.layer.id + '</h1>';
 		
 		var propHTML = '<table>';
-		for (var property in top.properties) {
-			var propLabel;
-			var display = false;
-			if (popupLabels[top.layer.id] === undefined) {
-				propLabel = property;
-				display = true;
-			} else {
-				if (popupLabels[top.layer.id][property] === undefined) {
-					display = false;
-				} else {
-					propLabel = popupLabels[top.layer.id][property];
-					display = true;
+		
+		var properties, propLabels;
+		if (popupLabels[top.layer.id] === undefined) {
+			properties = Object.keys(top.properties);
+			propLabels = properties;
+		} else {
+			properties = Object.keys(popupLabels[top.layer.id]);
+			propLabels = Object.values(popupLabels[top.layer.id]);
+		}
+		for (var i = 0; i < properties.length; i ++) {
+			var property = properties[i];
+			var propLabel = propLabels[i];
+			var theProp = top.properties[property];
+			if (theProp.toLowerCase().indexOf('http') == 0 && theProp.toLowerCase().indexOf('.jpg') == theProp.length - 4) {
+				if (theProp.toLowerCase().indexOf(',http') > 0) {
+					theProp = theProp.split(',')[0];
 				}
+				theProp = '<img src="' + theProp + '" />';
 			}
-			if (display) {
-				var theProp = top.properties[property];
-				if (theProp.toLowerCase().indexOf('http') == 0 && theProp.toLowerCase().indexOf('.jpg') == theProp.length - 4) {
-					if (theProp.toLowerCase().indexOf(',http') > 0) {
-						theProp = theProp.split(',')[0];
-					}
-					theProp = '<img src="' + theProp + '" />';
-				}
-				propHTML = propHTML +
-					'<tr><th>' + propLabel + '</th>' +
-					'<td>' + theProp + '</td></tr>'
-				;
-			}
+			propHTML = propHTML +
+				'<tr><th>' + propLabel + '</th>' +
+				'<td>' + theProp + '</td></tr>'
+			;
 		}
 		propHTML = propHTML + '</table>';
 		popup.setLngLat(e.lngLat);
